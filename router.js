@@ -1,7 +1,7 @@
 var request = require('request'),
     mongoose = require('mongoose'),
     Busboy = require('busboy'),
-    Storage = require('./Storage');
+    Storage = require('./storage');
 
 var StorageModel = mongoose.model('storage');
 
