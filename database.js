@@ -14,4 +14,16 @@ var Storage = new Schema({
     updateTime: {type: Date, default: Date.now()}
 });
 
+
+var Picture = new Schema({
+    storage: {type: Schema.ObjectId, index: true},
+    size: {
+        width: Number,
+        height: Number
+    },
+    createTime: {type: Date, default: Date.now()},
+    updateTime: {type: Date, default: Date.now()}
+});
+
 mongoose.model('storage', Storage, 'storage');
+mongoose.model('picture', Picture, 'picture');

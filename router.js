@@ -1,63 +1,101 @@
 var request = require('request'),
     mongoose = require('mongoose'),
     Busboy = require('busboy'),
+    mimetype = require('mimetype'),
+    async = require('onetool').async,
     Storage = require('./storage');
 
-var StorageModel = mongoose.model('storage');
+var StorageModel = mongoose.model('storage'),
+    PictureModel = mongoose.model('picture');
 
 var storage = new Storage(CONFIG.PATH);
 
 function save(file, filename, mimetype, callback){
-    if(typeof filename === 'function'){
-        callback = filename;
-        filename = undefined;
-    }else if(typeof mimetype === 'function'){
-        callback = mimetype;
-        mimetype = undefined;
-    }
-    callback = callback || function(){};
-    storage.stream(file, function(err, id){
+
+    async.waterfall([function(next){
+
+        storage.stream(file, next);
+
+    }, function(id, next){
+
         filename = filename || id;
         var storage = new StorageModel({
             name: filename,
             filename: filename,
             file: id,
-            mimetype: mimetype || req.headers['content-type']
+            mimetype: mimetype
         });
-        storage.save(function(err, storage){
-            if(err) return callback(err);
-            callback(null, storage);
-        });
-    });
+        storage.save(next);
+
+    }], callback);
+
 }
+
+
+function savePicture(file, filename, type, callback){
+
+    var result = {};
+
+    async.waterfall([function(next){
+
+        require('gm')(file, filename)
+        .size({bufferStream: true}, function(err, size) {
+            if(err) return callback(err);
+            result.size = size;
+        })
+        .stream(next);
+
+    }, function(stdout, stderr, cmd, next){
+
+        save(stdout, filename, type, next);
+
+    }, function(storage, count, next){
+
+        result.storage = storage._id;
+        var picture = new PictureModel(result);
+        picture.save(next);
+
+    }], callback);
+}
+
+function upload(req, res, next, save){
+
+    var fn = function(err, data){
+        if(err) return res.status(401).json(err);
+        res.json(data);
+    };
+
+    var url = req.param('url'),
+        filename = req.body.name || req.query.filename || require('path').basename(url),
+        type = req.query.mimetype || req.headers['content-type'] || mimetype.lookup(filename);
+
+    if(url) return save(request(url), filename, type, fn);
+
+    try{
+        var busboy = new Busboy({headers: req.headers});
+        busboy.on('file', function(fieldname, file, name, encoding, mimetype) {
+            save(file, name || filename, mimetype, fn);
+        });
+        req.pipe(busboy);
+    }catch(err){
+        save(req, filename, type, fn);
+    }
+
+}
+
 
 module.exports = function(app){
 
     app.post('/u', function(req, res, next){
+        upload(req, res, next, save);
+    });
 
-        var fn = function(err, data){
-            if(err) return next(err);
-            res.json(data);
-        };
-
-        var filename = req.body.name || req.query.filename;
-
-        var url = req.param('url');
-        if(url) return save(request(url), filename, fn);
-
-        try{
-            var busboy = new Busboy({headers: req.headers});
-            busboy.on('file', function(fieldname, file, name, encoding, mimetype) {
-                save(file, filename || name, mimetype, fn);
-            });
-            req.pipe(busboy);
-        }catch(err){
-            save(req, filename, req.query.mimetype, fn);
-        }
-
+    app.post('/pic', function(req, res, next){
+        upload(req, res, next, savePicture);
     });
 
     app.get('/d', function(req, res){
         res.send('a');
     });
+
 };
