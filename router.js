@@ -33,7 +33,6 @@ function save(file, filename, mimetype, callback){
 
 
 function savePicture(file, filename, type, callback){
-
     var result = {};
 
     async.waterfall([function(next){
@@ -94,8 +93,18 @@ module.exports = function(app){
         upload(req, res, next, savePicture);
     });
 
-    app.get('/d', function(req, res){
-        res.send('a');
+    app.get('/d/:id', function(req, res){
+        StorageModel.findById(req.params.id, function(err, result){
+            res.type(result.mimetype).sendFile(CONFIG.PATH + '/' + result.file);
+        });
+    });
+
+    app.get('/pic/:id', function(req, res, next){
+        PictureModel.findById(req.params.id)
+        .populate('storage')
+        .exec(function(err, result){
+            res.type(result.storage.mimetype).sendFile(CONFIG.PATH + '/' + result.storage.file);
+        });
     });
 
 };

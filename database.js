@@ -4,7 +4,6 @@ var Schema = mongoose.Schema;
 mongoose.connect(CONFIG.DATABASE);
 
 var Storage = new Schema({
-
     name:       {type: String},
     filename:   {type: String, index: true},
     file:       {type: String, required: true, index: true},
@@ -16,7 +15,7 @@ var Storage = new Schema({
 
 
 var Picture = new Schema({
-    storage: {type: Schema.ObjectId, index: true},
+    storage: {type: Schema.ObjectId, ref: 'storage', index: true},
     size: {
         width: Number,
         height: Number
