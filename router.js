@@ -10,7 +10,7 @@ var StorageModel = mongoose.model('storage'),
 
 var storage = new Storage(CONFIG.PATH);
 
-function save(file, filename, mimetype, callback){
+function save(req, res, file, filename, mimetype, callback){
 
     async.waterfall([function(next){
 
@@ -25,6 +25,9 @@ function save(file, filename, mimetype, callback){
             file: id,
             mimetype: mimetype
         });
+        if(req.user){
+            storage.author = req.user._id;
+        }
         storage.save(next);
 
     }], callback);
@@ -32,7 +35,7 @@ function save(file, filename, mimetype, callback){
 }
 
 
-function savePicture(file, filename, type, callback){
+function savePicture(req, res, file, filename, type, callback){
     var result = {};
 
     async.waterfall([function(next){
@@ -46,7 +49,7 @@ function savePicture(file, filename, type, callback){
 
     }, function(stdout, stderr, cmd, next){
 
-        save(stdout, filename, type, next);
+        save(req, res, stdout, filename, type, next);
 
     }, function(storage, count, next){
 
@@ -86,11 +89,11 @@ function upload(req, res, next, save){
 module.exports = function(app){
 
     app.post('/u', function(req, res, next){
-        upload(req, res, next, save);
+        upload(req, res, next, save.bind(null, req, res));
     });
 
     app.post('/pic', function(req, res, next){
-        upload(req, res, next, savePicture);
+        upload(req, res, next, savePicture.bind(null, req, res));
     });
 
     app.get('/d/:id', function(req, res){

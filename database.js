@@ -8,6 +8,7 @@ var Storage = new Schema({
     filename:   {type: String, index: true},
     file:       {type: String, required: true, index: true},
     mimetype:   {type: String, default: 'text/plain'},
+    author:     {type: Schema.ObjectId, index: true},
 
     createTime: {type: Date, default: Date.now()},
     updateTime: {type: Date, default: Date.now()}
