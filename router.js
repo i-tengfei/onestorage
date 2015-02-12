@@ -95,6 +95,8 @@ module.exports = function(app){
 
     app.get('/d/:id', function(req, res){
         StorageModel.findById(req.params.id, function(err, result){
+            if(err) return res.status(401).json(err);
+            if(!result) return res.status(404).end();
             res.type(result.mimetype).sendFile(CONFIG.PATH + '/' + result.file);
         });
     });
@@ -103,6 +105,8 @@ module.exports = function(app){
         PictureModel.findById(req.params.id)
         .populate('storage')
         .exec(function(err, result){
+            if(err) return res.status(401).json(err);
+            if(!result || !result.storage) return res.status(404).end();
             res.type(result.storage.mimetype).sendFile(CONFIG.PATH + '/' + result.storage.file);
         });
     });
