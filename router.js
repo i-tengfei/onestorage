@@ -8,7 +8,8 @@ var request = require('request'),
 var StorageModel = mongoose.model('storage'),
     PictureModel = mongoose.model('picture');
 
-var storage = new Storage(CONFIG.PATH);
+var storage = new Storage(CONFIG.PATH),
+    auth = require('passport-oneuser').auth(CONFIG.AUTH);
 
 function save(req, res, file, filename, mimetype, callback){
 
@@ -85,32 +86,41 @@ function upload(req, res, next, save){
 
 }
 
+function sendFile(req, res, err, result){
+
+    if(err) return res.status(401).json(err);
+    if(!result) return res.status(404).end();
+    if(result.privacy === 'public'){
+        res.type(result.mimetype).sendFile(CONFIG.PATH + '/' + result.file);
+    }else{
+        auth(req, res, function(){
+            if(req.user._id !== result.author) return res.status(401).end();
+            res.type(result.mimetype).sendFile(CONFIG.PATH + '/' + result.file);
+        });
+    }
+
+}
 
 module.exports = function(app){
 
-    app.post('/u', function(req, res, next){
+    app.post('/u', auth, function(req, res, next){
         upload(req, res, next, save.bind(null, req, res));
     });
 
-    app.post('/pic', function(req, res, next){
+    app.post('/pic', auth, function(req, res, next){
         upload(req, res, next, savePicture.bind(null, req, res));
     });
 
     app.get('/d/:id', function(req, res){
-        StorageModel.findById(req.params.id, function(err, result){
-            if(err) return res.status(401).json(err);
-            if(!result) return res.status(404).end();
-            res.type(result.mimetype).sendFile(CONFIG.PATH + '/' + result.file);
-        });
+        StorageModel.findById(req.params.id, sendFile.bind(null, req, res));
     });
 
     app.get('/pic/:id', function(req, res, next){
         PictureModel.findById(req.params.id)
         .populate('storage')
         .exec(function(err, result){
-            if(err) return res.status(401).json(err);
-            if(!result || !result.storage) return res.status(404).end();
-            res.type(result.storage.mimetype).sendFile(CONFIG.PATH + '/' + result.storage.file);
+            if(!result) return res.status(404).end();
+            sendFile(req, res, err, result.storage);
         });
     });
 
